@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Flowfield Dreams</title>
+
+<style>
+html, body {
+    margin: 0;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    background: black;
+}
+
+canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+    touch-action: none;
+}
+
+.info {
+    position: fixed;
+    left: 16px;
+    bottom: 16px;
+    color: rgba(255,255,255,.5);
+    font-family: system-ui, sans-serif;
+    font-size: 12px;
+    letter-spacing: .1em;
+    pointer-events: none;
+    text-transform: uppercase;
+}
+</style>
+</head>
+<body>
+
+<canvas id="c"></canvas>
+<div class="info">Flowfield Dreams</div>
+
+<script>
+const canvas = document.getElementById("c");
+const ctx = canvas.getContext("2d");
+
+let w, h, dpr;
+let particles = [];
+
+const pointer = {
+    x: 0,
+    y: 0,
+    active: false
+};
+
+function resize() {
+    dpr = window.devicePixelRatio || 1;
+    w = window.innerWidth;
+    h = window.innerHeight;
+
+    canvas.width = w * dpr;
+    canvas.height = h * dpr;
+
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+    createParticles();
+}
+
+class Particle {
+    constructor() {
+        this.reset();
+        this.x = Math.random() * w;
+        this.y = Math.random() * h;
+    }
+
+    reset() {
+        this.x = Math.random() * w;
+        this.y = Math.random() * h;
+        this.vx = 0;
+        this.vy = 0;
+        this.life = Math.random() * 800;
+        this.hue = Math.random() * 360;
+    }
+
+    update(time) {
+        const scale = 0.0015;
+
+        const angle =
+            Math.sin(this.x * scale * 2 + time * 0.0003) +
+            Math.cos(this.y * scale * 3 - time * 0.0002) +
+            Math.sin((this.x + this.y) * scale);
+
+        this.vx += Math.cos(angle) * 0.08;
+        this.vy += Math.sin(angle) * 0.08;
+
+        if (pointer.active) {
+            const dx = pointer.x - this.x;
+            const dy = pointer.y - this.y;
+            const dist = Math.hypot(dx, dy) + 0.001;
+
+            const force = Math.min(250 / dist, 3);
+
+            this.vx += (dx / dist) * force * 0.08;
+            this.vy += (dy / dist) * force * 0.08;
+        }
+
+        this.vx *= 0.97;
+        this.vy *= 0.97;
+
+        const px = this.x;
+        const py = this.y;
+
+        this.x += this.vx;
+        this.y += this.vy;
+
+        ctx.beginPath();
+        ctx.moveTo(px, py);
+        ctx.lineTo(this.x, this.y);
+
+        ctx.strokeStyle = `hsla(${this.hue},100%,65%,0.08)`;
+        ctx.lineWidth = 1;
+        ctx.stroke();
+
+        this.hue += 0.3;
+        this.life--;
+
+        if (
+            this.life <= 0 ||
+            this.x < -100 ||
+            this.x > w + 100 ||
+            this.y < -100 ||
+            this.y > h + 100
+        ) {
+            this.reset();
+        }
+    }
+}
+
+function createParticles() {
+    const count = Math.floor((w * h) / 5000);
+
+    particles = [];
+
+    for (let i = 0; i < count; i++) {
+        particles.push(new Particle());
+    }
+}
+
+function animate(time) {
+    ctx.fillStyle = "rgba(0,0,0,0.03)";
+    ctx.fillRect(0, 0, w, h);
+
+    ctx.globalCompositeOperation = "lighter";
+
+    for (const p of particles) {
+        p.update(time);
+    }
+
+    requestAnimationFrame(animate);
+}
+
+window.addEventListener("mousemove", e => {
+    pointer.x = e.clientX;
+    pointer.y = e.clientY;
+    pointer.active = true;
+});
+
+window.addEventListener("touchmove", e => {
+    pointer.x = e.touches[0].clientX;
+    pointer.y = e.touches[0].clientY;
+    pointer.active = true;
+}, { passive: true });
+
+window.addEventListener("mouseleave", () => {
+    pointer.active = false;
+});
+
+window.addEventListener("touchend", () => {
+    pointer.active = false;
+});
+
+window.addEventListener("resize", resize);
+
+resize();
+
+ctx.fillStyle = "black";
+ctx.fillRect(0,0,w,h);
+
+requestAnimationFrame(animate);
+</script>
+
+</body>
+</html>
